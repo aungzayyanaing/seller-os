@@ -182,6 +182,20 @@ function showToast(msg) {
 
 /* ---------- view routing ---------- */
 let currentView = "dashboard";
+
+/* The topbar title is not a data-i18n element, so the language toggle
+   (which only runs applyI18n + renderView) used to leave it stuck in the
+   old language. Keep it in one helper and call it on every render. */
+function updateViewTitle() {
+  const titleKey = currentView === "new-order" ? "order.newTitle" :
+    currentView === "dashboard" ? "dashboard.title" :
+    currentView === "products" ? "products.title" :
+    currentView === "orders" ? "orders.title" :
+    currentView === "customers" ? "customers.title" :
+    currentView === "expenses" ? "expenses.title" :
+    currentView === "analytics" ? "analytics.title" : "data.title";
+  $("viewTitle").textContent = t(titleKey, lang);
+}
 function showView(name) {
   if (VIEWS.indexOf(name) === -1) name = "dashboard";
   currentView = name;
@@ -192,14 +206,7 @@ function showView(name) {
   document.querySelectorAll(".nav-item").forEach(function (btn) {
     btn.classList.toggle("active", btn.getAttribute("data-view") === name);
   });
-  const titleKey = name === "new-order" ? "order.newTitle" :
-    name === "dashboard" ? "dashboard.title" :
-    name === "products" ? "products.title" :
-    name === "orders" ? "orders.title" :
-    name === "customers" ? "customers.title" :
-    name === "expenses" ? "expenses.title" :
-    name === "analytics" ? "analytics.title" : "data.title";
-  $("viewTitle").textContent = t(titleKey, lang);
+  updateViewTitle();
   document.querySelector(".sidebar").classList.remove("open");
   if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
   renderView(name);
@@ -215,6 +222,7 @@ function renderView(name) {
 }
 function renderAll() {
   applyI18n();
+  updateViewTitle();
   renderView(currentView);
 }
 
@@ -222,6 +230,15 @@ function renderAll() {
 function productById(id) { return state.products.find(function (p) { return p.id === id; }); }
 function customerById(id) { return state.customers.find(function (c) { return c.id === id; }); }
 function activeOrders() { return state.orders.filter(function (o) { return o.status !== "cancelled"; }); }
+function orderCost(o) {
+  // Cost of goods sold for one order, using each product's current cost.
+  // Order items store the sale-time price but not the cost, so current cost
+  // is the best available figure; deleted products count as 0 cost.
+  return o.items.reduce(function (s, it) {
+    const p = productById(it.productId);
+    return s + (p ? p.cost : 0) * it.qty;
+  }, 0);
+}
 function monthPrefix() { return todayISO().slice(0, 7); }
 
 /* ---------- dashboard ---------- */
@@ -234,6 +251,9 @@ function renderDashboard() {
   const monthRevenue = activeOrders()
     .filter(function (o) { return o.date.slice(0, 7) === month; })
     .reduce(function (s, o) { return s + o.total; }, 0);
+  const monthCogs = activeOrders()
+    .filter(function (o) { return o.date.slice(0, 7) === month; })
+    .reduce(function (s, o) { return s + orderCost(o); }, 0);
   const monthExpenses = state.expenses
     .filter(function (e) { return e.date.slice(0, 7) === month; })
     .reduce(function (s, e) { return s + e.amount; }, 0);
@@ -241,7 +261,7 @@ function renderDashboard() {
   const low = state.products.filter(function (p) { return p.stock <= LOW_STOCK_AT; });
 
   $("stat-today-revenue").textContent = fmt(todayRevenue);
-  $("stat-month-profit").textContent = fmt(monthRevenue - monthExpenses);
+  $("stat-month-profit").textContent = fmt(monthRevenue - monthCogs - monthExpenses);
   $("stat-pending-orders").textContent = String(pending);
   $("stat-low-stock").textContent = String(low.length);
 
@@ -368,6 +388,7 @@ function saveProduct(e) {
   save();
   closeModal("product-modal");
   renderProducts();
+  showToast(t("products.saved", lang));
 }
 function deleteProduct(id) {
   if (!confirm(t("products.deleteConfirm", lang))) return;
@@ -645,13 +666,14 @@ function renderAnalytics() {
   for (let i = 29; i >= 0; i--) {
     const d = isoDaysAgo(i);
     days.push(shortDayLabel(d));
-    const r = activeOrders().filter(function (o) { return o.date === d; })
-      .reduce(function (s, o) { return s + o.total; }, 0);
+    const dayOrders = activeOrders().filter(function (o) { return o.date === d; });
+    const r = dayOrders.reduce(function (s, o) { return s + o.total; }, 0);
+    const c = dayOrders.reduce(function (s, o) { return s + orderCost(o); }, 0);
     const x = state.expenses.filter(function (e) { return e.date === d; })
       .reduce(function (s, e) { return s + e.amount; }, 0);
     rev.push(r);
     exp.push(x);
-    prof.push(r - x);
+    prof.push(r - c - x);
   }
   drawMultiLineChart($("chart-profit"), days, [
     { label: t("analytics.revenue", lang), values: rev, color: CHART_COLORS.gold },

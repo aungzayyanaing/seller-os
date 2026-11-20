@@ -36,7 +36,7 @@ function fmtCompact(n) {
 /* Multi-series line chart.
    labels: string[], series: [{label, values: number[], color}] */
 function drawMultiLineChart(canvas, labels, series, height) {
-  const pad = { l: 52, r: 12, t: 14, b: 26 };
+  const pad = { l: 52, r: 32, t: 14, b: 26 };
   const s = setupCanvas(canvas, height || 220);
   const ctx = s.ctx;
   const plotW = s.w - pad.l - pad.r;
@@ -77,12 +77,15 @@ function drawMultiLineChart(canvas, labels, series, height) {
     ctx.fillText(fmtCompact(val), pad.l - 6, gy + 4);
   }
 
-  // X labels (every nth so they fit)
+  // X labels (every nth so they fit). Clamp each label's centre so the
+  // full text stays inside the canvas (the last label used to clip to "21 No").
   const step = Math.max(1, Math.ceil(labels.length / 7));
   ctx.textAlign = "center";
   labels.forEach(function (lb, i) {
     if (i % step === 0 || i === labels.length - 1) {
-      ctx.fillText(lb, x(i), s.h - 8);
+      const tw = ctx.measureText(lb).width;
+      const cx = Math.max(tw / 2 + 2, Math.min(x(i), s.w - tw / 2 - 2));
+      ctx.fillText(lb, cx, s.h - 8);
     }
   });
 
@@ -130,52 +133,57 @@ function drawMultiLineChart(canvas, labels, series, height) {
   });
 }
 
-/* Vertical bar chart.
+/* Horizontal bar chart with full labels (no truncation).
    labels: string[], values: number[] */
 function drawBarChart(canvas, labels, values, color, height) {
-  const pad = { l: 52, r: 12, t: 24, b: 26 };
   const s = setupCanvas(canvas, height || 220);
   const ctx = s.ctx;
-  const plotW = s.w - pad.l - pad.r;
-  const plotH = s.h - pad.t - pad.b;
   if (!labels.length) return;
 
   let max = 0;
   values.forEach(function (v) { if (v > max) max = v; });
   if (max === 0) max = 1;
 
-  ctx.clearRect(0, 0, s.w, s.h);
+  // Left gutter sized to the longest label so full names always fit.
   ctx.font = "11px system-ui, sans-serif";
+  let labelW = 0;
+  labels.forEach(function (lb) {
+    labelW = Math.max(labelW, ctx.measureText(lb).width);
+  });
+  const pad = { l: Math.ceil(labelW) + 12, r: 34, t: 12, b: 14 };
+  const plotW = s.w - pad.l - pad.r;
+  const plotH = s.h - pad.t - pad.b;
+
+  ctx.clearRect(0, 0, s.w, s.h);
   ctx.fillStyle = CHART_COLORS.text;
   ctx.strokeStyle = CHART_COLORS.grid;
   ctx.lineWidth = 1;
 
+  // Vertical gridlines + x labels (5 steps)
   for (let g = 0; g <= 4; g++) {
     const val = (max * g) / 4;
-    const gy = pad.t + plotH - (plotH * g) / 4;
+    const gx = pad.l + (plotW * g) / 4;
     ctx.beginPath();
-    ctx.moveTo(pad.l, gy);
-    ctx.lineTo(s.w - pad.r, gy);
+    ctx.moveTo(gx, pad.t);
+    ctx.lineTo(gx, pad.t + plotH);
     ctx.stroke();
-    ctx.textAlign = "right";
-    ctx.fillText(fmtCompact(val), pad.l - 6, gy + 4);
+    ctx.textAlign = "center";
+    ctx.fillText(fmtCompact(val), gx, s.h - 2);
   }
 
-  const slot = plotW / labels.length;
-  const barW = Math.min(44, slot * 0.6);
+  const slot = plotH / labels.length;
+  const barH = Math.min(26, slot * 0.55);
   labels.forEach(function (lb, i) {
-    const bh = (plotH * values[i]) / max;
-    const bx = pad.l + slot * i + (slot - barW) / 2;
-    const by = pad.t + plotH - bh;
+    const bw = (plotW * values[i]) / max;
+    const by = pad.t + slot * i + (slot - barH) / 2;
     ctx.fillStyle = color || CHART_COLORS.gold;
-    ctx.fillRect(bx, by, barW, bh);
+    ctx.fillRect(pad.l, by, bw, barH);
     ctx.fillStyle = "#374151";
-    ctx.textAlign = "center";
-    ctx.font = "11px system-ui, sans-serif";
-    ctx.fillText(fmtCompact(values[i]), bx + barW / 2, by - 6);
+    ctx.textAlign = "left";
+    ctx.fillText(fmtCompact(values[i]), pad.l + bw + 6, by + barH / 2 + 4);
     ctx.fillStyle = CHART_COLORS.text;
-    const short = lb.length > 12 ? lb.slice(0, 11) + "…" : lb;
-    ctx.fillText(short, bx + barW / 2, s.h - 8);
+    ctx.textAlign = "right";
+    ctx.fillText(lb, pad.l - 8, by + barH / 2 + 4);
   });
 }
 
@@ -200,9 +208,18 @@ function drawDonut(container, segments, centerLabel) {
       '" stroke-dashoffset="' + (-offset) + '" transform="rotate(-90 100 100)"/>';
     offset += len;
   });
+  // Round percentages, then give the largest slice the rounding remainder
+  // so the legend always totals exactly 100%.
+  const pcts = segments.map(function (sg) { return Math.round((sg.value / total) * 100); });
+  const pctSum = pcts.reduce(function (a, b) { return a + b; }, 0);
+  if (pcts.length && pctSum !== 100) {
+    let bi = 0;
+    segments.forEach(function (sg, i) { if (sg.value > segments[bi].value) bi = i; });
+    pcts[bi] += 100 - pctSum;
+  }
   let legend = "";
-  segments.forEach(function (sg) {
-    const pct = Math.round((sg.value / total) * 100);
+  segments.forEach(function (sg, i) {
+    const pct = pcts[i];
     legend += '<div class="legend-row"><span class="legend-dot" style="background:' + sg.color +
       '"></span><span class="legend-label">' + escapeHtml(sg.label) +
       '</span><span class="legend-value">' + pct + "%</span></div>";
