@@ -1,0 +1,398 @@
+<!DOCTYPE html>
+<html lang="my">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seller OS — Business Manager for Small Sellers</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div class="layout">
+
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="brand">
+      <span class="brand-name">Seller OS</span>
+      <span class="brand-sub" data-i18n="appTagline">ဆိုင်ငယ်များအတွက် လုပ်ငန်းစီမံခန့်ခွဲမှု</span>
+    </div>
+    <nav class="nav">
+      <button class="nav-item active" data-view="dashboard" data-i18n="nav.dashboard">ဒက်ရှ်ဘုတ်</button>
+      <button class="nav-item" data-view="products" data-i18n="nav.products">ကုန်ပစ္စည်းများ</button>
+      <button class="nav-item" data-view="new-order" data-i18n="nav.newOrder">အမှာစာအသစ်</button>
+      <button class="nav-item" data-view="orders" data-i18n="nav.orders">အမှာစာများ</button>
+      <button class="nav-item" data-view="customers" data-i18n="nav.customers">ဖောက်သည်များ</button>
+      <button class="nav-item" data-view="expenses" data-i18n="nav.expenses">ကုန်ကျစရိတ်</button>
+      <button class="nav-item" data-view="analytics" data-i18n="nav.analytics">ခွဲခြမ်းစိတ်ဖြာမှု</button>
+      <button class="nav-item" data-view="data" data-i18n="nav.data">ဒေတာ</button>
+    </nav>
+    <div class="sidebar-foot">Seller OS · v1.0</div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <header class="topbar">
+      <button class="menu-btn" id="menuToggle" aria-label="Menu">&#9776;</button>
+      <h1 id="viewTitle">ဒက်ရှ်ဘုတ်</h1>
+      <button class="btn" id="langToggle">English</button>
+    </header>
+
+    <!-- Dashboard -->
+    <section id="view-dashboard" class="view active">
+      <div class="stats">
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="dashboard.todayRevenue">ယနေ့ ဝင်ငွေ</div>
+          <div class="stat-value" id="stat-today-revenue">0 Ks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="dashboard.monthProfit">ယခုလ အမြတ်</div>
+          <div class="stat-value" id="stat-month-profit">0 Ks</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="dashboard.pendingOrders">စောင့်ဆိုင်းနေသော အမှာစာများ</div>
+          <div class="stat-value" id="stat-pending-orders">0</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-label" data-i18n="dashboard.lowStock">ကုန်ပစ္စည်း နည်းနေသည်</div>
+          <div class="stat-value" id="stat-low-stock">0</div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="dashboard.revenue14">နောက်ဆုံး ၁၄ ရက် ဝင်ငွေ</h2>
+        <canvas id="chart-revenue"></canvas>
+      </div>
+
+      <div class="grid-2">
+        <div class="card">
+          <h2 data-i18n="dashboard.topProducts">အရောင်းရဆုံး ကုန်ပစ္စည်းများ</h2>
+          <div id="top-products-list"></div>
+        </div>
+        <div class="card">
+          <h2 data-i18n="dashboard.lowStockAlerts">ကုန်ပစ္စည်း နည်းနေသော သတိပေးချက်များ</h2>
+          <div id="low-stock-list"></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="dashboard.recentOrders">လတ်တလော အမှာစာများ</h2>
+        <div id="recent-orders-list"></div>
+      </div>
+    </section>
+
+    <!-- Products -->
+    <section id="view-products" class="view">
+      <div class="toolbar">
+        <input type="search" id="product-search" data-i18n-ph="products.searchPh" placeholder="ကုန်ပစ္စည်း ရှာရန်...">
+        <select id="product-category-filter"></select>
+        <button class="btn primary" id="btn-add-product" data-i18n="products.add">ကုန်ပစ္စည်း အသစ်ထည့်ရန်</button>
+      </div>
+      <div class="card table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th data-i18n="products.name">အမည်</th>
+              <th data-i18n="products.category">အမျိုးအစား</th>
+              <th data-i18n="products.sku">SKU</th>
+              <th data-i18n="products.cost">ဝယ်ဈေး</th>
+              <th data-i18n="products.price">ရောင်းဈေး</th>
+              <th data-i18n="products.stock">လက်ကျန်</th>
+              <th data-i18n="products.margin">အမြတ် %</th>
+              <th data-i18n="products.actions">လုပ်ဆောင်ချက်</th>
+            </tr>
+          </thead>
+          <tbody id="product-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- New Order -->
+    <section id="view-new-order" class="view">
+      <div class="card">
+        <h2 data-i18n="order.customer">ဖောက်သည်</h2>
+        <div class="form-grid">
+          <div class="field">
+            <select id="order-customer"></select>
+          </div>
+          <div class="field">
+            <input type="text" id="order-new-name" data-i18n-ph="order.newCustomerName" placeholder="ဖောက်သည်အသစ် အမည်">
+          </div>
+          <div class="field">
+            <input type="tel" id="order-new-phone" data-i18n-ph="order.newCustomerPhone" placeholder="ဖောက်သည်အသစ် ဖုန်း">
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2 data-i18n="order.lines">အမှာစာ စာရင်း</h2>
+        <div class="form-grid">
+          <div class="field">
+            <label for="order-product" data-i18n="order.product">ကုန်ပစ္စည်း</label>
+            <select id="order-product"></select>
+          </div>
+          <div class="field">
+            <label for="order-qty" data-i18n="order.qty">အရေအတွက်</label>
+            <input type="number" id="order-qty" value="1" min="1" step="1">
+          </div>
+          <div class="field field-btn">
+            <button class="btn primary" id="btn-add-line" data-i18n="order.addLine">ထည့်ရန်</button>
+          </div>
+        </div>
+        <div class="table-wrap">
+          <table class="table">
+            <thead>
+              <tr>
+                <th data-i18n="order.item">ပစ္စည်း</th>
+                <th data-i18n="order.unitPrice">တစ်ခု ဈေး</th>
+                <th data-i18n="order.qty">အရေအတွက်</th>
+                <th data-i18n="order.lineTotal">စုစုပေါင်း</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody id="order-lines-body"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="form-grid">
+          <div class="field">
+            <label for="order-payment" data-i18n="order.payment">ငွေပေးချေမှု</label>
+            <select id="order-payment"></select>
+          </div>
+          <div class="field">
+            <label for="order-status" data-i18n="order.status">အခြေအနေ</label>
+            <select id="order-status"></select>
+          </div>
+          <div class="field total-field">
+            <span data-i18n="order.total">စုစုပေါင်း</span>
+            <strong id="order-total">0 Ks</strong>
+          </div>
+        </div>
+        <div class="actions-row">
+          <button class="btn primary" id="btn-save-order" data-i18n="order.save">အမှာစာ သိမ်းရန်</button>
+          <button class="btn" id="btn-clear-order" data-i18n="order.clear">ရှင်းလင်းရန်</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Orders -->
+    <section id="view-orders" class="view">
+      <div class="toolbar">
+        <select id="order-status-filter"></select>
+      </div>
+      <div class="card table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th data-i18n="orders.number">အမှာစာနံပါတ်</th>
+              <th data-i18n="orders.date">ရက်စွဲ</th>
+              <th data-i18n="orders.customer">ဖောက်သည်</th>
+              <th data-i18n="orders.total">စုစုပေါင်း</th>
+              <th data-i18n="orders.payment">ငွေပေးချေမှု</th>
+              <th data-i18n="orders.status">အခြေအနေ</th>
+              <th data-i18n="orders.actions">လုပ်ဆောင်ချက်</th>
+            </tr>
+          </thead>
+          <tbody id="orders-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Customers -->
+    <section id="view-customers" class="view">
+      <div class="toolbar">
+        <input type="search" id="customer-search" data-i18n-ph="customers.searchPh" placeholder="ဖောက်သည် ရှာရန်...">
+        <button class="btn primary" id="btn-add-customer" data-i18n="customers.add">ဖောက်သည် အသစ်ထည့်ရန်</button>
+      </div>
+      <div class="card table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th data-i18n="customers.name">အမည်</th>
+              <th data-i18n="customers.phone">ဖုန်း</th>
+              <th data-i18n="customers.note">မှတ်ချက်</th>
+              <th data-i18n="customers.orderCount">အမှာစာ အရေအတွက်</th>
+              <th data-i18n="customers.totalSpent">စုစုပေါင်း သုံးစွဲငွေ</th>
+              <th data-i18n="customers.actions">လုပ်ဆောင်ချက်</th>
+            </tr>
+          </thead>
+          <tbody id="customers-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Expenses -->
+    <section id="view-expenses" class="view">
+      <div class="card">
+        <div class="expense-head">
+          <h2 data-i18n="expenses.totalThisMonth">ယခုလ စုစုပေါင်း ကုန်ကျစရိတ်</h2>
+          <strong id="expense-month-total">0 Ks</strong>
+        </div>
+        <div class="form-grid">
+          <div class="field">
+            <input type="text" id="ef-title" data-i18n-ph="expenses.expenseTitle" placeholder="စရိတ် အကြောင်းအရာ">
+          </div>
+          <div class="field">
+            <select id="ef-category"></select>
+          </div>
+          <div class="field">
+            <input type="number" id="ef-amount" min="0" step="1" data-i18n-ph="expenses.amount" placeholder="ပမာဏ">
+          </div>
+          <div class="field">
+            <input type="date" id="ef-date">
+          </div>
+          <div class="field field-btn">
+            <button class="btn primary" id="btn-add-expense" data-i18n="expenses.add">ထည့်ရန်</button>
+          </div>
+        </div>
+      </div>
+      <div class="card table-wrap">
+        <table class="table">
+          <thead>
+            <tr>
+              <th data-i18n="expenses.expenseTitle">စရိတ် အကြောင်းအရာ</th>
+              <th data-i18n="expenses.category">အမျိုးအစား</th>
+              <th data-i18n="expenses.amount">ပမာဏ</th>
+              <th data-i18n="expenses.date">ရက်စွဲ</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="expenses-table-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Analytics -->
+    <section id="view-analytics" class="view">
+      <div class="card">
+        <h2 data-i18n="analytics.profit30">နောက်ဆုံး ၃၀ ရက် အမြတ်</h2>
+        <canvas id="chart-profit"></canvas>
+      </div>
+      <div class="grid-2">
+        <div class="card">
+          <h2 data-i18n="analytics.top5">အရောင်းရဆုံး ကုန်ပစ္စည်း ၅ မျိုး</h2>
+          <canvas id="chart-top-products"></canvas>
+        </div>
+        <div class="card">
+          <h2 data-i18n="analytics.byCategory">အမျိုးအစားအလိုက် ရောင်းအား</h2>
+          <div id="chart-category"></div>
+        </div>
+      </div>
+      <div class="card">
+        <h2 data-i18n="analytics.byPayment">ငွေပေးချေမှုနည်းလမ်းအလိုက်</h2>
+        <div id="chart-payment"></div>
+      </div>
+    </section>
+
+    <!-- Data -->
+    <section id="view-data" class="view">
+      <div class="card">
+        <h2 data-i18n="data.title">ဒေတာ စီမံခန့်ခွဲမှု</h2>
+        <p class="muted" data-i18n="data.hint">ဒေတာအားလုံးကို သင့်ဘရောက်ဆာထဲတွင် သိမ်းဆည်းထားပါသည်။ အင်တာနက် မလိုအပ်ပါ။</p>
+        <div class="actions-col">
+          <button class="btn primary" id="btn-export-json" data-i18n="data.exportJson">JSON အဖြစ် ထုတ်ယူရန်</button>
+          <button class="btn" id="btn-export-csv" data-i18n="data.exportCsv">အမှာစာများကို CSV အဖြစ် ထုတ်ယူရန်</button>
+          <button class="btn" id="btn-import-json" data-i18n="data.importJson">JSON ဒေတာ ထည့်သွင်းရန်</button>
+          <input type="file" id="import-file" accept="application/json,.json" hidden>
+          <button class="btn danger-outline" id="btn-clear-demo" data-i18n="data.clearDemo">နမူနာဒေတာ ရှင်းလင်းရန်</button>
+          <button class="btn danger" id="btn-reset-data" data-i18n="data.reset">ဒေတာအားလုံး ပြန်လည်သတ်မှတ်ရန်</button>
+        </div>
+        <p class="muted" id="data-status"></p>
+      </div>
+    </section>
+  </main>
+</div>
+
+<!-- Product modal -->
+<div class="modal-overlay" id="product-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="product-modal-title">ကုန်ပစ္စည်း အသစ်ထည့်ရန်</h3>
+      <button class="modal-x" data-close="product-modal" aria-label="Close">&times;</button>
+    </div>
+    <form id="product-form">
+      <input type="hidden" id="pf-id">
+      <div class="field">
+        <label for="pf-name" data-i18n="products.name">အမည်</label>
+        <input type="text" id="pf-name" required>
+      </div>
+      <div class="field">
+        <label for="pf-category" data-i18n="products.category">အမျိုးအစား</label>
+        <select id="pf-category"></select>
+      </div>
+      <div class="field">
+        <label for="pf-sku" data-i18n="products.sku">SKU</label>
+        <input type="text" id="pf-sku" readonly>
+      </div>
+      <div class="form-grid">
+        <div class="field">
+          <label for="pf-cost" data-i18n="products.cost">ဝယ်ဈေး</label>
+          <input type="number" id="pf-cost" min="0" step="1" required>
+        </div>
+        <div class="field">
+          <label for="pf-price" data-i18n="products.price">ရောင်းဈေး</label>
+          <input type="number" id="pf-price" min="0" step="1" required>
+        </div>
+        <div class="field">
+          <label for="pf-stock" data-i18n="products.stock">လက်ကျန်</label>
+          <input type="number" id="pf-stock" min="0" step="1" required>
+        </div>
+      </div>
+      <div class="actions-row">
+        <button type="submit" class="btn primary" data-i18n="common.save">သိမ်းဆည်းရန်</button>
+        <button type="button" class="btn" data-close="product-modal" data-i18n="common.cancel">ပယ်ဖျက်ရန်</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Customer modal -->
+<div class="modal-overlay" id="customer-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="customer-modal-title">ဖောက်သည်အသစ်</h3>
+      <button class="modal-x" data-close="customer-modal" aria-label="Close">&times;</button>
+    </div>
+    <form id="customer-form">
+      <input type="hidden" id="cf-id">
+      <div class="field">
+        <label for="cf-name" data-i18n="customers.name">အမည်</label>
+        <input type="text" id="cf-name" required>
+      </div>
+      <div class="field">
+        <label for="cf-phone" data-i18n="customers.phone">ဖုန်း</label>
+        <input type="tel" id="cf-phone">
+      </div>
+      <div class="field">
+        <label for="cf-note" data-i18n="customers.note">မှတ်ချက်</label>
+        <input type="text" id="cf-note">
+      </div>
+      <div class="actions-row">
+        <button type="submit" class="btn primary" data-i18n="common.save">သိမ်းဆည်းရန်</button>
+        <button type="button" class="btn" data-close="customer-modal" data-i18n="common.cancel">ပယ်ဖျက်ရန်</button>
+      </div>
+    </form>
+  </div>
+</div>
+
+<!-- Order detail modal -->
+<div class="modal-overlay" id="order-modal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 data-i18n="orders.detailTitle">အမှာစာ အသေးစိတ်</h3>
+      <button class="modal-x" data-close="order-modal" aria-label="Close">&times;</button>
+    </div>
+    <div id="order-detail"></div>
+    <div class="actions-row">
+      <button class="btn" data-close="order-modal" data-i18n="common.close">ပိတ်ရန်</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="i18n.js"></script>
+<script src="charts.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
