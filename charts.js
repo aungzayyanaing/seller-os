@@ -39,6 +39,21 @@ function drawMultiLineChart(canvas, labels, series, height) {
   const pad = { l: 52, r: 32, t: 14, b: 26 };
   const s = setupCanvas(canvas, height || 220);
   const ctx = s.ctx;
+  // Legend layout first: wrap to a second row instead of overflowing the
+  // canvas (three Burmese series labels do not fit on one 320px row).
+  ctx.font = "12px system-ui, sans-serif";
+  const legendItems = series.map(function (sr) {
+    return { label: sr.label, color: sr.color, w: 14 + ctx.measureText(sr.label).width + 18 };
+  });
+  let legendRows = 1;
+  let lx = pad.l;
+  legendItems.forEach(function (it) {
+    if (lx + it.w > s.w - 4 && lx > pad.l) { legendRows++; lx = pad.l; }
+    it.x = lx;
+    it.row = legendRows - 1;
+    lx += it.w;
+  });
+  pad.t = 14 + (legendRows - 1) * 16;
   const plotW = s.w - pad.l - pad.r;
   const plotH = s.h - pad.t - pad.b;
   if (!labels.length) return;
@@ -120,16 +135,15 @@ function drawMultiLineChart(canvas, labels, series, height) {
     });
   });
 
-  // Legend
-  let lx = pad.l;
+  // Legend (wrapped layout computed up front)
   ctx.textAlign = "left";
   ctx.font = "12px system-ui, sans-serif";
-  series.forEach(function (sr) {
-    ctx.fillStyle = sr.color;
-    ctx.fillRect(lx, 0, 10, 10);
+  legendItems.forEach(function (it) {
+    const ly = it.row * 16;
+    ctx.fillStyle = it.color;
+    ctx.fillRect(it.x, ly, 10, 10);
     ctx.fillStyle = "#374151";
-    ctx.fillText(sr.label, lx + 14, 9);
-    lx += 14 + ctx.measureText(sr.label).width + 18;
+    ctx.fillText(it.label, it.x + 14, ly + 9);
   });
 }
 
@@ -188,12 +202,14 @@ function drawBarChart(canvas, labels, values, color, height) {
 }
 
 /* Donut chart (SVG) with legend.
-   segments: [{label, value, color}] — rendered into a container element. */
-function drawDonut(container, segments, centerLabel) {
+   segments: [{label, value, color}] — rendered into a container element.
+   emptyLabel: message shown when there is nothing to chart (the old code
+   showed only the centre word, e.g. "Revenue", which read as a bug). */
+function drawDonut(container, segments, centerLabel, emptyLabel) {
   const total = segments.reduce(function (sum, sg) { return sum + sg.value; }, 0);
   if (!container) return;
   if (!segments.length || total === 0) {
-    container.innerHTML = '<p class="empty">' + (centerLabel || "") + "</p>";
+    container.innerHTML = '<p class="empty">' + escapeHtml(emptyLabel || centerLabel || "") + "</p>";
     return;
   }
   const r = 70;

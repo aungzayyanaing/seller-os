@@ -160,21 +160,74 @@ function save() {
   lsSet(JSON.stringify(state));
 }
 
+/* ---------- Iconography (inline SVG, one consistent stroke style) ----------
+   The UI uses icons, never emojis. Every icon is a 24x24 outline glyph:
+   stroke=currentColor, stroke-width 2, round caps/joins, no fill.
+   Single source of truth: icon(name) builds the <svg>; static spots mark
+   themselves with data-icon="name" and applyI18n() injects the markup. */
+const ICONS = {
+  dashboard: '<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>',
+  package: '<path d="M16.5 9.4 7.55 4.24"/><path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>',
+  "plus-circle": '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/>',
+  receipt: '<path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><line x1="8" y1="7" x2="16" y2="7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="13" y2="15"/>',
+  users: '<path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/>',
+  "trending-down": '<polyline points="23 18 13.5 8.5 8.5 13.5 1 6"/><polyline points="17 18 23 18 23 12"/>',
+  "trending-up": '<polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/>',
+  chart: '<line x1="18" y1="20" x2="18" y2="10"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="6" y1="20" x2="6" y2="14"/>',
+  database: '<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>',
+  banknote: '<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2"/><path d="M6 12h.01M18 12h.01"/>',
+  clock: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  alert: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  globe: '<circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>',
+  menu: '<line x1="3" y1="6" x2="21" y2="6"/><line x1="3" y1="12" x2="21" y2="12"/><line x1="3" y1="18" x2="21" y2="18"/>',
+  x: '<line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>',
+  plus: '<line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>',
+  edit: '<path d="M17 3a2.828 2.828 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>',
+  trash: '<polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>',
+  eye: '<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>',
+  download: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>',
+  upload: '<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>',
+  refresh: '<polyline points="1 4 1 10 7 10"/><path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10"/>',
+  check: '<polyline points="20 6 9 17 4 12"/>',
+  "check-circle": '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+  search: '<circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>',
+  star: '<polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>',
+  "pie-chart": '<path d="M21.21 15.89A10 10 0 1 1 8 2.83"/><path d="M22 12A10 10 0 0 0 12 2v10z"/>',
+  "file-text": '<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/>',
+  "credit-card": '<rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/>'
+};
+function icon(name) {
+  return '<svg class="ic" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">' + (ICONS[name] || "") + "</svg>";
+}
+
 /* ---------- i18n ---------- */
 function applyI18n() {
   document.querySelectorAll("[data-i18n]").forEach(function (el) {
     el.textContent = t(el.getAttribute("data-i18n"), lang);
+    /* Icons live beside the label: textContent wipes children, so the
+       icon is (re-)injected after every language switch. */
+    const ic = el.getAttribute("data-icon");
+    if (ic) el.insertAdjacentHTML("afterbegin", icon(ic));
   });
   document.querySelectorAll("[data-i18n-ph]").forEach(function (el) {
     el.setAttribute("placeholder", t(el.getAttribute("data-i18n-ph"), lang));
+    el.setAttribute("aria-label", t(el.getAttribute("data-i18n-ph"), lang));
+  });
+  /* Static icon slots (no label to translate): fill once, never duplicate. */
+  document.querySelectorAll("[data-icon]").forEach(function (el) {
+    if (!el.getAttribute("data-i18n") && !el.innerHTML) {
+      el.innerHTML = icon(el.getAttribute("data-icon"));
+    }
   });
   document.documentElement.lang = lang === "my" ? "my" : "en";
-  $("langToggle").textContent = lang === "my" ? "English" : "မြန်မာ";
+  $("langToggle").innerHTML = icon("globe") + "<span>" + (lang === "my" ? "English" : "မြန်မာ") + "</span>";
 }
 
-function showToast(msg) {
+function showToast(msg, kind) {
   const toast = $("toast");
-  toast.textContent = msg;
+  const ic = kind === "warn" ? "alert" : "check-circle";
+  toast.innerHTML = icon(ic) + "<span>" + esc(msg) + "</span>";
+  toast.classList.toggle("warn", kind === "warn");
   toast.classList.add("show");
   clearTimeout(toastTimer);
   toastTimer = setTimeout(function () { toast.classList.remove("show"); }, 2600);
@@ -208,6 +261,8 @@ function showView(name) {
   });
   updateViewTitle();
   document.querySelector(".sidebar").classList.remove("open");
+  $("scrim").classList.remove("show");
+  $("menuToggle").setAttribute("aria-expanded", "false");
   if (location.hash !== "#" + name) history.replaceState(null, "", "#" + name);
   renderView(name);
 }
@@ -260,8 +315,13 @@ function renderDashboard() {
   const pending = state.orders.filter(function (o) { return o.status === "pending"; }).length;
   const low = state.products.filter(function (p) { return p.stock <= LOW_STOCK_AT; });
 
+  const monthProfit = monthRevenue - monthCogs - monthExpenses;
   $("stat-today-revenue").textContent = fmt(todayRevenue);
-  $("stat-month-profit").textContent = fmt(monthRevenue - monthCogs - monthExpenses);
+  const profitEl = $("stat-month-profit");
+  profitEl.textContent = fmt(monthProfit);
+  /* Profit sign is meaning, not decoration: red when losing, green when gaining. */
+  profitEl.classList.toggle("negative", monthProfit < 0);
+  profitEl.classList.toggle("positive", monthProfit > 0);
   $("stat-pending-orders").textContent = String(pending);
   $("stat-low-stock").textContent = String(low.length);
 
@@ -287,7 +347,7 @@ function renderDashboard() {
     .sort(function (a, b) { return b.total - a.total; }).slice(0, 5);
   const topEl = $("top-products-list");
   if (!top.length) {
-    topEl.innerHTML = '<p class="empty">' + esc(t("dashboard.noTopProducts", lang)) + "</p>";
+    topEl.innerHTML = '<p class="empty">' + icon("star") + esc(t("dashboard.noTopProducts", lang)) + "</p>";
   } else {
     topEl.innerHTML = top.map(function (row, i) {
       return '<div class="list-row"><span class="rank">' + (i + 1) + '</span><span class="list-name">' + esc(row.name) +
@@ -298,7 +358,7 @@ function renderDashboard() {
   // Low stock alerts
   const lowEl = $("low-stock-list");
   if (!low.length) {
-    lowEl.innerHTML = '<p class="empty">' + esc(t("dashboard.noLowStock", lang)) + "</p>";
+    lowEl.innerHTML = '<p class="empty">' + icon("alert") + esc(t("dashboard.noLowStock", lang)) + "</p>";
   } else {
     lowEl.innerHTML = low.map(function (p) {
       return '<div class="list-row alert"><span class="list-name">' + esc(p.name) +
@@ -310,7 +370,7 @@ function renderDashboard() {
   const recent = state.orders.slice().sort(function (a, b) { return b.createdAt - a.createdAt; }).slice(0, 5);
   const recEl = $("recent-orders-list");
   if (!recent.length) {
-    recEl.innerHTML = '<p class="empty">' + esc(t("dashboard.noRecentOrders", lang)) + "</p>";
+    recEl.innerHTML = '<p class="empty">' + icon("clock") + esc(t("dashboard.noRecentOrders", lang)) + "</p>";
   } else {
     recEl.innerHTML = recent.map(function (o) {
       return '<div class="list-row"><span class="list-name">' + esc(o.number) + " · " + esc(o.customerName) +
@@ -336,7 +396,7 @@ function renderProducts() {
   });
   const body = $("product-table-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="8" class="empty-cell">' + esc(t("products.noProducts", lang)) + "</td></tr>";
+    body.innerHTML = '<tr><td colspan="8" class="empty-cell">' + icon("package") + esc(t("products.noProducts", lang)) + "</td></tr>";
     return;
   }
   body.innerHTML = rows.map(function (p) {
@@ -345,13 +405,13 @@ function renderProducts() {
       "<td>" + esc(p.name) + "</td>" +
       "<td>" + esc(t("cat." + p.category, lang)) + "</td>" +
       "<td>" + esc(p.sku || "") + "</td>" +
-      "<td>" + fmt(p.cost) + "</td>" +
-      "<td>" + fmt(p.price) + "</td>" +
-      "<td class=\"" + (p.stock <= LOW_STOCK_AT ? "low" : "") + "\">" + p.stock + "</td>" +
-      "<td>" + margin + "%</td>" +
+      '<td class="num">' + fmt(p.cost) + "</td>" +
+      '<td class="num">' + fmt(p.price) + "</td>" +
+      '<td class="num ' + (p.stock <= LOW_STOCK_AT ? "low" : "") + '">' + p.stock + "</td>" +
+      '<td class="num">' + margin + "%</td>" +
       '<td class="row-actions">' +
-      '<button class="btn small" data-edit-product="' + p.id + '">' + esc(t("common.edit", lang)) + "</button> " +
-      '<button class="btn small danger" data-delete-product="' + p.id + '">' + esc(t("common.delete", lang)) + "</button>" +
+      '<button class="btn small" data-edit-product="' + p.id + '">' + icon("edit") + esc(t("common.edit", lang)) + "</button> " +
+      '<button class="btn small danger" data-delete-product="' + p.id + '">' + icon("trash") + esc(t("common.delete", lang)) + "</button>" +
       "</td></tr>";
   }).join("");
 }
@@ -366,6 +426,7 @@ function openProductModal(id) {
   $("pf-stock").value = p ? p.stock : "";
   $("pf-sku").value = p ? (p.sku || "") : "";
   openModal("product-modal");
+  $("pf-name").focus();
 }
 function saveProduct(e) {
   e.preventDefault();
@@ -398,32 +459,38 @@ function deleteProduct(id) {
 }
 
 /* ---------- new order ---------- */
+/* Rebuilding the selects wipes an in-progress choice (and the debounced
+   resize re-render hits this too), so snapshot and restore the picks. */
 function renderNewOrder() {
+  const keepCust = $("order-customer").value;
+  const keepProd = $("order-product").value;
   const custSel = $("order-customer");
   custSel.innerHTML = '<option value="">' + esc(t("order.selectCustomer", lang)) + "</option>" +
     state.customers.map(function (c) {
       return '<option value="' + c.id + '">' + esc(c.name) + " (" + esc(c.phone || "") + ")</option>";
     }).join("");
+  if (keepCust) custSel.value = keepCust;
   const prodSel = $("order-product");
   prodSel.innerHTML = '<option value="">' + esc(t("order.selectProduct", lang)) + "</option>" +
     state.products.map(function (p) {
       return '<option value="' + p.id + '">' + esc(p.name) + " — " + fmt(p.price) +
         " (" + esc(t("products.stock", lang)) + ": " + p.stock + ")</option>";
     }).join("");
+  if (keepProd) prodSel.value = keepProd;
   renderLines();
 }
 function renderLines() {
   const body = $("order-lines-body");
   if (!orderLines.length) {
-    body.innerHTML = '<tr><td colspan="5" class="empty-cell">' + esc(t("order.noLines", lang)) + "</td></tr>";
+    body.innerHTML = '<tr><td colspan="5" class="empty-cell">' + icon("receipt") + esc(t("order.noLines", lang)) + "</td></tr>";
   } else {
     body.innerHTML = orderLines.map(function (ln, i) {
       return "<tr>" +
         "<td>" + esc(ln.name) + "</td>" +
-        "<td>" + fmt(ln.price) + "</td>" +
-        "<td>" + ln.qty + "</td>" +
-        "<td>" + fmt(ln.price * ln.qty) + "</td>" +
-        '<td><button class="btn small danger" data-remove-line="' + i + '">' + esc(t("common.delete", lang)) + "</button></td></tr>";
+        '<td class="num">' + fmt(ln.price) + "</td>" +
+        '<td class="num">' + ln.qty + "</td>" +
+        '<td class="num">' + fmt(ln.price * ln.qty) + "</td>" +
+        '<td><button class="btn small danger" data-remove-line="' + i + '">' + icon("trash") + esc(t("common.delete", lang)) + "</button></td></tr>";
     }).join("");
   }
   const total = orderLines.reduce(function (s, ln) { return s + ln.price * ln.qty; }, 0);
@@ -432,13 +499,13 @@ function renderLines() {
 function addLine() {
   const pid = $("order-product").value;
   const qty = Math.max(1, Math.round(Number($("order-qty").value) || 1));
-  if (!pid) return;
+  if (!pid) { showToast(t("order.chooseProduct", lang), "warn"); return; }
   const p = productById(pid);
   if (!p) return;
   const existing = orderLines.find(function (ln) { return ln.productId === pid; });
   const already = existing ? existing.qty : 0;
   if (qty + already > p.stock) {
-    showToast(t("order.outOfStock", lang) + " (" + esc(t("products.stock", lang)) + ": " + p.stock + ")");
+    showToast(t("order.outOfStock", lang) + " (" + esc(t("products.stock", lang)) + ": " + p.stock + ")", "warn");
     return;
   }
   if (existing) existing.qty += qty;
@@ -446,7 +513,7 @@ function addLine() {
   renderLines();
 }
 function saveOrder() {
-  if (!orderLines.length) { showToast(t("order.needProduct", lang)); return; }
+  if (!orderLines.length) { showToast(t("order.needProduct", lang), "warn"); return; }
   let customerId = $("order-customer").value;
   let customerName = "";
   const newName = $("order-new-name").value.trim();
@@ -459,7 +526,7 @@ function saveOrder() {
     customerId = nc.id;
     customerName = newName;
   } else {
-    showToast(t("order.needCustomer", lang));
+    showToast(t("order.needCustomer", lang), "warn");
     return;
   }
   const total = orderLines.reduce(function (s, ln) { return s + ln.price * ln.qty; }, 0);
@@ -492,7 +559,7 @@ function renderOrders() {
     .filter(function (o) { return !filter || o.status === filter; });
   const body = $("orders-table-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="7" class="empty-cell">' + esc(t("orders.noOrders", lang)) + "</td></tr>";
+    body.innerHTML = '<tr><td colspan="7" class="empty-cell">' + icon("receipt") + esc(t("orders.noOrders", lang)) + "</td></tr>";
     return;
   }
   body.innerHTML = rows.map(function (o) {
@@ -501,15 +568,15 @@ function renderOrders() {
       "<td>" + esc(o.number) + "</td>" +
       "<td>" + fmtDate(o.date) + "</td>" +
       "<td>" + esc(o.customerName) + "</td>" +
-      "<td>" + fmt(o.total) + "</td>" +
+      '<td class="num">' + fmt(o.total) + "</td>" +
       "<td>" + esc(t("pay." + o.payment, lang)) + "</td>" +
       '<td><select class="status-select" data-order-status="' + o.id + '">' +
       STATUSES.map(function (st) {
         return '<option value="' + st + '"' + (st === o.status ? " selected" : "") + ">" + esc(t("status." + st, lang)) + "</option>";
       }).join("") + "</select></td>" +
       '<td class="row-actions">' +
-      '<button class="btn small" data-view-order="' + o.id + '">' + esc(t("orders.view", lang)) + "</button> " +
-      (canCancel ? '<button class="btn small danger" data-cancel-order="' + o.id + '">' + esc(t("orders.cancel", lang)) + "</button>" : "") +
+      '<button class="btn small" data-view-order="' + o.id + '">' + icon("eye") + esc(t("orders.view", lang)) + "</button> " +
+      (canCancel ? '<button class="btn small danger" data-cancel-order="' + o.id + '">' + icon("x") + esc(t("orders.cancel", lang)) + "</button>" : "") +
       "</td></tr>";
   }).join("");
 }
@@ -546,10 +613,10 @@ function viewOrder(id) {
     '<div class="detail-head"><div><strong>' + esc(o.number) + '</strong><br>' +
     '<span class="muted">' + fmtDate(o.date) + " · " + esc(o.customerName) + "</span></div>" +
     '<span class="badge st-' + o.status + '">' + esc(t("status." + o.status, lang)) + "</span></div>" +
-    '<table class="table"><thead><tr><th>' + esc(t("order.item", lang)) + "</th><th>" + esc(t("order.unitPrice", lang)) +
-    "</th><th>" + esc(t("order.qty", lang)) + "</th><th>" + esc(t("order.lineTotal", lang)) + "</th></tr></thead><tbody>" +
+    '<table class="table"><thead><tr><th>' + esc(t("order.item", lang)) + "</th><th class=\"num\">" + esc(t("order.unitPrice", lang)) +
+    "</th><th class=\"num\">" + esc(t("order.qty", lang)) + "</th><th class=\"num\">" + esc(t("order.lineTotal", lang)) + "</th></tr></thead><tbody>" +
     o.items.map(function (it) {
-      return "<tr><td>" + esc(it.name) + "</td><td>" + fmt(it.price) + "</td><td>" + it.qty + "</td><td>" + fmt(it.price * it.qty) + "</td></tr>";
+      return "<tr><td>" + esc(it.name) + '</td><td class="num">' + fmt(it.price) + '</td><td class="num">' + it.qty + '</td><td class="num">' + fmt(it.price * it.qty) + "</td></tr>";
     }).join("") + "</tbody></table>" +
     '<div class="detail-foot"><span>' + esc(t("order.payment", lang)) + ": " + esc(t("pay." + o.payment, lang)) + "</span>" +
     "<strong>" + esc(t("order.total", lang)) + ": " + fmt(o.total) + "</strong></div>";
@@ -564,7 +631,7 @@ function renderCustomers() {
   });
   const body = $("customers-table-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="6" class="empty-cell">' + esc(t("customers.noCustomers", lang)) + "</td></tr>";
+    body.innerHTML = '<tr><td colspan="6" class="empty-cell">' + icon("users") + esc(t("customers.noCustomers", lang)) + "</td></tr>";
     return;
   }
   body.innerHTML = rows.map(function (c) {
@@ -574,11 +641,11 @@ function renderCustomers() {
       "<td>" + esc(c.name) + "</td>" +
       "<td>" + esc(c.phone || "") + "</td>" +
       "<td>" + esc(c.note || "") + "</td>" +
-      "<td>" + spent.length + "</td>" +
-      "<td>" + fmt(total) + "</td>" +
+      '<td class="num">' + spent.length + "</td>" +
+      '<td class="num">' + fmt(total) + "</td>" +
       '<td class="row-actions">' +
-      '<button class="btn small" data-edit-customer="' + c.id + '">' + esc(t("common.edit", lang)) + "</button> " +
-      '<button class="btn small danger" data-delete-customer="' + c.id + '">' + esc(t("common.delete", lang)) + "</button>" +
+      '<button class="btn small" data-edit-customer="' + c.id + '">' + icon("edit") + esc(t("common.edit", lang)) + "</button> " +
+      '<button class="btn small danger" data-delete-customer="' + c.id + '">' + icon("trash") + esc(t("common.delete", lang)) + "</button>" +
       "</td></tr>";
   }).join("");
 }
@@ -590,6 +657,7 @@ function openCustomerModal(id) {
   $("cf-phone").value = c ? (c.phone || "") : "";
   $("cf-note").value = c ? (c.note || "") : "";
   openModal("customer-modal");
+  $("cf-name").focus();
 }
 function saveCustomer(e) {
   e.preventDefault();
@@ -623,23 +691,23 @@ function renderExpenses() {
   const rows = state.expenses.slice().sort(function (a, b) { return b.date.localeCompare(a.date); });
   const body = $("expenses-table-body");
   if (!rows.length) {
-    body.innerHTML = '<tr><td colspan="5" class="empty-cell">' + esc(t("expenses.noExpenses", lang)) + "</td></tr>";
+    body.innerHTML = '<tr><td colspan="5" class="empty-cell">' + icon("trending-down") + esc(t("expenses.noExpenses", lang)) + "</td></tr>";
     return;
   }
   body.innerHTML = rows.map(function (e) {
     return "<tr>" +
       "<td>" + esc(e.title) + "</td>" +
       "<td>" + esc(t("exp." + e.category, lang)) + "</td>" +
-      "<td>" + fmt(e.amount) + "</td>" +
+      '<td class="num">' + fmt(e.amount) + "</td>" +
       "<td>" + fmtDate(e.date) + "</td>" +
-      '<td><button class="btn small danger" data-delete-expense="' + e.id + '">' + esc(t("common.delete", lang)) + "</button></td></tr>";
+      '<td><button class="btn small danger" data-delete-expense="' + e.id + '">' + icon("trash") + esc(t("common.delete", lang)) + "</button></td></tr>";
   }).join("");
 }
 function addExpense(e) {
   e.preventDefault();
   const title = $("ef-title").value.trim();
   const amount = Math.max(0, Math.round(Number($("ef-amount").value) || 0));
-  if (!title || amount <= 0) return;
+  if (!title || amount <= 0) { showToast(t("expenses.invalid", lang), "warn"); return; }
   state.expenses.push({
     id: uid("x"), title: title, category: $("ef-category").value,
     amount: amount, date: $("ef-date").value || todayISO()
@@ -704,7 +772,7 @@ function renderAnalytics() {
   const catSegs = Object.keys(byCat).map(function (c, i) {
     return { label: t("cat." + c, lang), value: byCat[c], color: DONUT_PALETTE[i % DONUT_PALETTE.length] };
   }).sort(function (a, b) { return b.value - a.value; });
-  drawDonut($("chart-category"), catSegs, t("analytics.revenue", lang));
+  drawDonut($("chart-category"), catSegs, t("analytics.revenue", lang), t("analytics.noData", lang));
 
   // Sales by payment method (revenue)
   const byPay = {};
@@ -714,7 +782,7 @@ function renderAnalytics() {
   const paySegs = Object.keys(byPay).map(function (p, i) {
     return { label: t("pay." + p, lang), value: byPay[p], color: DONUT_PALETTE[i % DONUT_PALETTE.length] };
   }).sort(function (a, b) { return b.value - a.value; });
-  drawDonut($("chart-payment"), paySegs, t("analytics.revenue", lang));
+  drawDonut($("chart-payment"), paySegs, t("analytics.revenue", lang), t("analytics.noData", lang));
 }
 
 /* ---------- data ---------- */
@@ -761,7 +829,7 @@ function importJSON(file) {
       renderAll();
       showToast(t("data.imported", lang));
     } catch (e) {
-      showToast(t("data.importError", lang));
+      showToast(t("data.importError", lang), "warn");
     }
   };
   reader.readAsText(file);
@@ -786,7 +854,14 @@ function openModal(id) { $(id).classList.add("open"); }
 function closeModal(id) { $(id).classList.remove("open"); }
 
 /* ---------- init ---------- */
+/* Rebuilding a <select>'s options resets its selection in the browser, so
+   a language toggle used to silently clear every filter. Snapshot the
+   selections first, rebuild, then restore what still exists. */
 function fillStaticSelects() {
+  const keep = {};
+  ["pf-category", "product-category-filter", "order-payment", "order-status", "order-status-filter", "ef-category"].forEach(function (id) {
+    keep[id] = $(id).value;
+  });
   $("pf-category").innerHTML = productOptions("");
   $("product-category-filter").innerHTML =
     '<option value="">' + esc(t("products.allCategories", lang)) + "</option>" + productOptions("");
@@ -804,7 +879,11 @@ function fillStaticSelects() {
   $("ef-category").innerHTML = EXPENSE_CATEGORIES.map(function (c) {
     return '<option value="' + c + '">' + esc(t("exp." + c, lang)) + "</option>";
   }).join("");
-  $("ef-date").value = todayISO();
+  Object.keys(keep).forEach(function (id) {
+    if (keep[id]) $(id).value = keep[id];
+  });
+  /* Only default the expense date when the user has not picked one. */
+  if (!$("ef-date").value) $("ef-date").value = todayISO();
 }
 
 function bindEvents() {
@@ -812,7 +891,16 @@ function bindEvents() {
     btn.addEventListener("click", function () { showView(btn.getAttribute("data-view")); });
   });
   $("menuToggle").addEventListener("click", function () {
-    document.querySelector(".sidebar").classList.toggle("open");
+    const sidebar = document.querySelector(".sidebar");
+    const open = !sidebar.classList.contains("open");
+    sidebar.classList.toggle("open", open);
+    $("scrim").classList.toggle("show", open);
+    $("menuToggle").setAttribute("aria-expanded", String(open));
+  });
+  $("scrim").addEventListener("click", function () {
+    document.querySelector(".sidebar").classList.remove("open");
+    $("scrim").classList.remove("show");
+    $("menuToggle").setAttribute("aria-expanded", "false");
   });
   $("langToggle").addEventListener("click", function () {
     lang = lang === "my" ? "en" : "my";
@@ -902,7 +990,12 @@ function bindEvents() {
     });
   });
   document.addEventListener("keydown", function (e) {
-    if (e.key === "Escape") document.querySelectorAll(".modal-overlay.open").forEach(function (ov) { ov.classList.remove("open"); });
+    if (e.key === "Escape") {
+      document.querySelectorAll(".modal-overlay.open").forEach(function (ov) { ov.classList.remove("open"); });
+      document.querySelector(".sidebar").classList.remove("open");
+      $("scrim").classList.remove("show");
+      $("menuToggle").setAttribute("aria-expanded", "false");
+    }
   });
 
   // Re-draw charts on resize (only the visible view's charts)
