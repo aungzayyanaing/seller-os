@@ -588,7 +588,7 @@ function setOrderStatus(id, status) {
     renderOrders();
     return;
   }
-  o.status = status;
+  if (status === "cancelled" && o.status !== "cancelled") o.items.forEach(function (it) { const p = productById(it.productId); if (p) p.stock += it.qty; }); o.status = status;
   save();
   showToast(t("orders.statusChanged", lang));
   renderOrders();
